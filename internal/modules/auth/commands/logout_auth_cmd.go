@@ -3,10 +3,11 @@ package commands
 import (
 	"client-goph-keerper/internal/storage"
 	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
-// LogoutCommand инициализирует команду для выхода пользователя
+// LogoutCommand инициализирует команду для выхода пользователя.
 func LogoutCommand(s *storage.Storage) (*cobra.Command, error) {
 	logoutCmd := &cobra.Command{
 		Use:   "logout",
@@ -15,7 +16,7 @@ func LogoutCommand(s *storage.Storage) (*cobra.Command, error) {
 			// Вызываем функцию для удаления токена из базы данных
 			err := s.RemoveTokenFromDB()
 			if err != nil {
-				return fmt.Errorf("failed to log out: %v", err)
+				return fmt.Errorf("failed to log out: %w", err)
 			}
 
 			fmt.Println("You have logged out")

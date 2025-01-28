@@ -1,64 +1,54 @@
 package commands
 
 import (
-	"bytes"
 	"client-goph-keerper/internal/storage"
-	"encoding/json"
 	"fmt"
-	"github.com/spf13/cobra"
 	"net/http"
+	"path"
+
+	"github.com/spf13/cobra"
 )
 
-// SetDeletePasswordCmd создает команду удаления пароля по ID
+// SetDeletePasswordCmd создает команду удаления пароля по ID.
 func SetDeletePasswordCmd(s *storage.Storage) (*cobra.Command, error) {
 	deletePwdCmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete a password by ID",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Получаем значение флага
-			pwdID, _ := cmd.Flags().GetString("pwd_id")
+			pwdID, _ := cmd.Flags().GetString(PwdID)
 
-			// Формируем JSON-данные для отправки
-			data := map[string]interface{}{
-				"pwd_id": pwdID,
-			}
-
-			body, err := json.Marshal(data)
+			// Создаем URL для запроса
+			url := path.Join(s.ServerURL, Pwd, "delete", pwdID)
+			req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 			if err != nil {
-				return fmt.Errorf("ошибка кодирования JSON: %v", err)
-			}
-
-			// Создаем запрос
-			url := fmt.Sprintf("%s/pwd/delete", s.ServerURL)
-			req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-			if err != nil {
-				return fmt.Errorf("ошибка создания запроса: %v", err)
+				return fmt.Errorf(ErrCreateRequest, err)
 			}
 
 			// Устанавливаем заголовки
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Authorization", s.Token)
+			req.Header.Set(ContentType, applicationJSON)
+			req.Header.Set(Authorization, s.Token)
 
 			// Отправляем запрос
 			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				return fmt.Errorf("ошибка отправки запроса: %v", err)
+				return fmt.Errorf(ErrSendRequest, err)
 			}
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck //опустим здесь проверку
 
-			fmt.Printf("Response: %v\n", resp.Status)
+			fmt.Printf(Response, resp.Status)
 			return nil
 		},
 	}
 
 	// Определяем флаг
-	deletePwdCmd.Flags().String("pwd_id", "", "Password entry ID")
+	deletePwdCmd.Flags().String(PwdID, "", "Password entry ID")
 
 	// Устанавливаем обязательный флаг
-	err := deletePwdCmd.MarkFlagRequired("pwd_id")
+	err := deletePwdCmd.MarkFlagRequired(PwdID)
 	if err != nil {
-		return nil, fmt.Errorf("error setting required flag 'pwd_id': %v", err)
+		return nil, fmt.Errorf("error setting required flag 'pwd_id': %w", err)
 	}
 
 	return deletePwdCmd, nil

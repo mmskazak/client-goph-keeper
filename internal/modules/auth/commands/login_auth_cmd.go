@@ -4,46 +4,61 @@ import (
 	"bytes"
 	"client-goph-keerper/internal/storage"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
 	"io"
 	"net/http"
+	"path"
+
+	"github.com/spf13/cobra"
 )
 
-// LoginCommand инициализирует команду для входа пользователя
+const Username = "username"
+const Password = "password"
+const Login = "login"
+const Response = "Response: %v\n"
+
+// LoginCommand инициализирует команду для входа пользователя.
 func LoginCommand(s *storage.Storage) (*cobra.Command, error) {
 	loginCmd := &cobra.Command{
-		Use:   "login",
+		Use:   Login,
 		Short: "Log in a user",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Проверяем, есть ли уже сохраненный токен
-			isHaveToken, err := checkTokenExists()
+			isHaveToken, err := checkTokenExists(s)
 			if err != nil {
 				return fmt.Errorf("checkTokenExists: %w", err)
 			}
 			if isHaveToken {
-				return fmt.Errorf("пользователь уже авторизован")
+				return errors.New("пользователь уже авторизован")
 			}
 
 			// Получаем логин и пароль из флагов
-			login, _ := cmd.Flags().GetString("login")
-			password, _ := cmd.Flags().GetString("password")
+			username, err := cmd.Flags().GetString(Username)
+			if err != nil {
+				return fmt.Errorf("cmd.Flags().GetString: %w", err)
+			}
+			password, err := cmd.Flags().GetString("password")
+			if err != nil {
+				return fmt.Errorf("cmd.Flags().GetString: %w", err)
+			}
 
 			// Формируем данные для JSON-запроса
 			data := map[string]string{
-				"login":    login,
-				"password": password,
+				Username: username,
+				Password: password,
 			}
 
 			body, err := json.Marshal(data)
 			if err != nil {
-				return fmt.Errorf("ошибка кодирования JSON: %v", err)
+				return fmt.Errorf("ошибка кодирования JSON: %w", err)
 			}
 
 			// Выполняем HTTP-запрос для входа
-			req, err := http.NewRequest("POST", "http://localhost:8080/login", bytes.NewBuffer(body))
+			loginURL := path.Join(s.ServerURL, Login)
+			req, err := http.NewRequest(http.MethodPost, loginURL, bytes.NewBuffer(body))
 			if err != nil {
-				return err
+				return fmt.Errorf("http.NewRequest: %w", err)
 			}
 
 			req.Header.Set("Content-Type", "application/json")
@@ -51,26 +66,26 @@ func LoginCommand(s *storage.Storage) (*cobra.Command, error) {
 			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				return err
+				return fmt.Errorf("client.Do: %w", err)
 			}
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck //опустим тут проверку
 
 			// Читаем ответ от сервера
 			all, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return err
+				return fmt.Errorf("all.ReadAll: %w", err)
 			}
 			fmt.Println(string(all))
 
 			if resp.StatusCode != http.StatusOK {
-				fmt.Printf("Response: %v\n", resp.Status)
+				fmt.Printf(Response, resp.Status)
 				return nil
 			}
 
 			// Извлекаем токен из заголовка ответа
 			token := resp.Header.Get("Authorization")
 			if token == "" {
-				return fmt.Errorf("токен не найден в заголовке")
+				return errors.New("токен не найден в заголовке")
 			}
 
 			// Сохраняем токен в базе данных
@@ -78,25 +93,25 @@ func LoginCommand(s *storage.Storage) (*cobra.Command, error) {
 				INSERT OR REPLACE INTO app_params (key, value)
 				VALUES (?, ?)`, "jwt_token", token)
 			if err != nil {
-				return fmt.Errorf("failed to save JWT token: %v", err)
+				return fmt.Errorf("failed to save JWT token: %w", err)
 			}
 			fmt.Println("JWT токен успешно сохранен:", token)
 
-			fmt.Printf("Response: %v\n", resp.Status)
+			fmt.Printf(Response, resp.Status)
 			return nil
 		},
 	}
 
 	// Добавляем обязательные флаги login и password
-	loginCmd.Flags().String("login", "", "Login for the user")
-	loginCmd.Flags().String("password", "", "Password for the user")
-	err := loginCmd.MarkFlagRequired("login")
+	loginCmd.Flags().String(Login, "", "Login for the user")
+	loginCmd.Flags().String(Password, "", "Password for the user")
+	err := loginCmd.MarkFlagRequired(Login)
 	if err != nil {
-		return nil, fmt.Errorf("failed to mark `login` flag as required: %v", err)
+		return nil, fmt.Errorf("failed to mark `login` flag as required: %w", err)
 	}
-	err = loginCmd.MarkFlagRequired("password")
+	err = loginCmd.MarkFlagRequired(Password)
 	if err != nil {
-		return nil, fmt.Errorf("failed to mark `password` flag as required: %v", err)
+		return nil, fmt.Errorf("failed to mark `password` flag as required: %w", err)
 	}
 
 	return loginCmd, nil

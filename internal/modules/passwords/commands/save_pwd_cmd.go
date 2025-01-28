@@ -5,76 +5,84 @@ import (
 	"client-goph-keerper/internal/storage"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"path"
+
 	_ "github.com/glebarez/sqlite" // Импорт драйвера SQLite
 	"github.com/spf13/cobra"
-	"net/http"
 )
 
-// SetSavePasswordCmd команда сохранения пароля
+// SetSavePasswordCmd команда сохранения пароля.
 func SetSavePasswordCmd(s *storage.Storage) (*cobra.Command, error) {
 	savePwdCmd := &cobra.Command{
 		Use:   "save",
 		Short: "Save a password",
 		RunE: func(cmd *cobra.Command, args []string) error {
-
 			// Получаем значения флагов
-			title, _ := cmd.Flags().GetString("title")
-			description, _ := cmd.Flags().GetString("description")
-			login, _ := cmd.Flags().GetString("login")
-			password, _ := cmd.Flags().GetString("password")
+			title, err := cmd.Flags().GetString(Title)
+			if err != nil {
+				return fmt.Errorf("get title flag: %w", err)
+			}
+			login, err := cmd.Flags().GetString(Login)
+			if err != nil {
+				return fmt.Errorf("get login flag: %w", err)
+			}
+			password, err := cmd.Flags().GetString(Password)
+			if err != nil {
+				return fmt.Errorf("get password flag: %w", err)
+			}
 
 			// Формируем JSON-данные для отправки
 			data := map[string]interface{}{
-				"title":       title,
-				"description": description,
+				Title: title,
 				"credentials": map[string]string{
-					"login":    login,
-					"password": password,
+					Login:    login,
+					Password: password,
 				},
 			}
 
 			body, err := json.Marshal(data)
 			if err != nil {
-				return fmt.Errorf("ошибка кодирования JSON: %v", err)
+				return fmt.Errorf("ошибка кодирования JSON: %w", err)
 			}
 
 			// Создаем и отправляем запрос
-			req, err := http.NewRequest("POST", s.ServerURL+"/pwd/save", bytes.NewBuffer(body))
+			reqURL := path.Join(s.ServerURL, Pwd, "save")
+			req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewBuffer(body))
 			if err != nil {
-				return err
+				return fmt.Errorf("error saving password: %w", err)
 			}
 
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Authorization", s.Token)
+			req.Header.Set(ContentType, applicationJSON)
+			req.Header.Set(Authorization, s.Token)
 
 			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				return err
+				return fmt.Errorf("error saving password: %w", err)
 			}
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck //опустим здесь проверку
 
-			fmt.Printf("Response: %v\n", resp.Status)
+			fmt.Printf(Response, resp.Status)
 			return nil
 		},
 	}
 
-	savePwdCmd.Flags().String("title", "", "Title for the password entry")
-	savePwdCmd.Flags().String("description", "", "Description for the password entry")
-	savePwdCmd.Flags().String("login", "", "Login for the password entry")
-	savePwdCmd.Flags().String("password", "", "Password for the password entry")
+	savePwdCmd.Flags().String(Title, "", "Title for the password entry")
+	savePwdCmd.Flags().String(Login, "", "Login for the password entry")
+	savePwdCmd.Flags().String(Password, "", "Password for the password entry")
 
-	err := savePwdCmd.MarkFlagRequired("title")
+	err := savePwdCmd.MarkFlagRequired(Title)
 	if err != nil {
-		return nil, fmt.Errorf("error setting requeired title: %v", err)
+		return nil, fmt.Errorf("error setting requeired title: %w", err)
 	}
-	err = savePwdCmd.MarkFlagRequired("login")
+	err = savePwdCmd.MarkFlagRequired(Login)
 	if err != nil {
-		return nil, fmt.Errorf("error setting requeired login: %v", err)
+		return nil, fmt.Errorf("error setting requeired login: %w", err)
 	}
-	err = savePwdCmd.MarkFlagRequired("password")
+	err = savePwdCmd.MarkFlagRequired(Password)
 	if err != nil {
-		return nil, fmt.Errorf("error setting requeired password: %v", err)
+		return nil, fmt.Errorf("error setting requeired password: %w", err)
 	}
 
 	return savePwdCmd, nil

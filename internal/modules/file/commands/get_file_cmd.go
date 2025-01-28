@@ -7,39 +7,39 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-// SetGetFileCmd создает команду для получения файла по ID
+// SetGetFileCmd создает команду для получения файла по ID.
 func SetGetFileCmd(s *storage.Storage) (*cobra.Command, error) {
 	getFileCmd := &cobra.Command{
 		Use:   "get",
 		Short: "Get a file by ID",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fileID, _ := cmd.Flags().GetString("file_id")
-
-			req, err := http.NewRequest("GET", fmt.Sprintf("%s/file/get/%s", s.ServerURL, fileID), nil)
+			fileID, err := cmd.Flags().GetString(FileID)
 			if err != nil {
-				return fmt.Errorf("ошибка создания запроса: %v", err)
+				return fmt.Errorf("get file id: %w", err)
+			}
+
+			reqURL := path.Join(s.ServerURL, File, "get", fileID)
+			req, err := http.NewRequest(http.MethodGet, reqURL, http.NoBody)
+			if err != nil {
+				return fmt.Errorf("ошибка создания запроса: %w", err)
 			}
 
 			// Используем токен из структуры storage
-			req.Header.Set("Authorization", s.Token)
+			req.Header.Set(Authorization, s.Token)
 
 			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				return fmt.Errorf("ошибка отправки запроса: %v", err)
+				return fmt.Errorf(ErrSendRequest, err)
 			}
-			defer func(Body io.ReadCloser) {
-				err := Body.Close()
-				if err != nil {
-					log.Printf("Error closing response body: %v", err)
-				}
-			}(resp.Body)
+			defer resp.Body.Close() //nolint:errcheck //опустим проверку
 
 			if resp.StatusCode != http.StatusOK {
 				return fmt.Errorf("не удалось получить файл, статус: %v", resp.Status)
@@ -64,7 +64,7 @@ func SetGetFileCmd(s *storage.Storage) (*cobra.Command, error) {
 			outputPath := filepath.Join(".", fileName)
 			file, err := os.Create(outputPath)
 			if err != nil {
-				return fmt.Errorf("ошибка создания файла: %v", err)
+				return fmt.Errorf("ошибка создания файла: %w", err)
 			}
 			defer func(file *os.File) {
 				err := file.Close()
@@ -76,7 +76,7 @@ func SetGetFileCmd(s *storage.Storage) (*cobra.Command, error) {
 			// Копируем содержимое ответа в файл
 			_, err = io.Copy(file, resp.Body)
 			if err != nil {
-				return fmt.Errorf("ошибка записи в файл: %v", err)
+				return fmt.Errorf("ошибка записи в файл: %w", err)
 			}
 
 			fmt.Printf("Файл успешно загружен: %s\n", outputPath)
@@ -84,10 +84,10 @@ func SetGetFileCmd(s *storage.Storage) (*cobra.Command, error) {
 		},
 	}
 
-	getFileCmd.Flags().String("file_id", "", "File ID to retrieve")
-	err := getFileCmd.MarkFlagRequired("file_id")
+	getFileCmd.Flags().String(FileID, "", "File ID to retrieve")
+	err := getFileCmd.MarkFlagRequired(FileID)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка установки обязательного флага 'file_id': %v", err)
+		return nil, fmt.Errorf("ошибка установки обязательного флага 'file_id': %w", err)
 	}
 
 	return getFileCmd, nil

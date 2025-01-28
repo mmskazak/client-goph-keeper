@@ -2,12 +2,13 @@ package main
 
 import (
 	"client-goph-keerper/internal/modules/auth"
-	"client-goph-keerper/internal/modules/connect_to_server"
+	"client-goph-keerper/internal/modules/connecttoserver"
 	"client-goph-keerper/internal/modules/file"
 	"client-goph-keerper/internal/modules/passwords"
 	"client-goph-keerper/internal/storage"
-	"github.com/spf13/cobra"
 	"log"
+
+	"github.com/spf13/cobra"
 )
 
 func main() {
@@ -18,7 +19,7 @@ func main() {
 	}
 
 	// Команды для первоначальной настройки
-	installingCmd, err := connect_to_server.StartsCmd(s)
+	installingCmd, err := connecttoserver.StartsCmd(s)
 	if err != nil {
 		log.Fatalf("Ошибка установки начальных команд: %v", err)
 	}

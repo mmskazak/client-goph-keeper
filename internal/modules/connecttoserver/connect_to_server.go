@@ -1,15 +1,16 @@
-package connect_to_server
+package connecttoserver
 
 import (
-	"client-goph-keerper/internal/modules/connect_to_server/commands"
+	"client-goph-keerper/internal/modules/connecttoserver/commands"
 	"client-goph-keerper/internal/storage"
 	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
 var initAppCmd = &cobra.Command{
-	Use:   "connect_to_server",
-	Short: "Params for job application",
+	Use:   "setServer",
+	Short: "Server for job application",
 }
 
 // StartsCmd инициализация команд - настроек клиента, для возможности начала работы.

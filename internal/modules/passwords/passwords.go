@@ -4,6 +4,7 @@ import (
 	"client-goph-keerper/internal/modules/passwords/commands"
 	"client-goph-keerper/internal/storage"
 	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -12,28 +13,28 @@ var pwdCmd = &cobra.Command{
 	Short: "Manage passwords",
 }
 
-// InitPwdCmd инициализирует команду управления паролями
+// InitPwdCmd инициализирует команду управления паролями.
 func InitPwdCmd(s *storage.Storage) (*cobra.Command, error) {
 	// Инициализация команд
 	savePwdCmd, err := commands.SetSavePasswordCmd(s)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка настройки команды сохранения пароля: %v", err)
+		return nil, fmt.Errorf("ошибка настройки команды сохранения пароля: %w", err)
 	}
 	updPwdCmd, err := commands.SetUpdatePasswordCmd(s)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка настройки команды обновления пароля: %v", err)
+		return nil, fmt.Errorf("ошибка настройки команды обновления пароля: %w", err)
 	}
 	deletePwdCmd, err := commands.SetDeletePasswordCmd(s)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка настройки команды удаления пароля: %v", err)
+		return nil, fmt.Errorf("ошибка настройки команды удаления пароля: %w", err)
 	}
 	getPwdCmd, err := commands.SetGetPasswordCmd(s)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка настройки команды получения пароля: %v", err)
+		return nil, fmt.Errorf("ошибка настройки команды получения пароля: %w", err)
 	}
 	allPwdCmd, err := commands.SetAllPasswordsCmd(s)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка настройки команды получения всех паролей: %v", err)
+		return nil, fmt.Errorf("ошибка настройки команды получения всех паролей: %w", err)
 	}
 
 	// Добавление команд к главной команде
